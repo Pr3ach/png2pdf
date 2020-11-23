@@ -3,28 +3,45 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
-	"errors"
 	_ "image/png"
 	"github.com/jung-kurt/gofpdf"
+	re "regexp"
+	"sort"
+	"strconv"
+	"io/ioutil"
+	"path/filepath"
 )
 
-func main() {
-	var png_list []string
+type pngs []string
 
-	if len(os.Args) < 2 {
+func main() {
+	var dir string
+	var l []string
+
+	if len(os.Args) != 2 {
 		usage(os.Args[0])
 		os.Exit(-1)
 	}
 
-	png_list = os.Args[1:]
+	dir = os.Args[1]
 
-	if e := validate_args(png_list); e != nil {
-		fmt.Println(e)
+	if !dir_exists(dir) {
+		fmt.Println("[!] No such directory")
 		os.Exit(-1)
 	}
 
-	if e := make_pdf_from_png(png_list); e != nil {
+	list_png(dir, &l)
+
+	if len(l) < 1 {
+		fmt.Printf("[!] No PNG files found in '%s'\n", dir)
+		os.Exit(0)
+	}
+
+	if is_ordered(l) {
+		sort.Sort(pngs(l))
+	}
+
+	if e := make_pdf_from_png(dir, l); e != nil {
 		fmt.Println(e)
 		os.Exit(-1)
 	}
@@ -37,24 +54,7 @@ func main() {
  *
  */
 func usage(self string) {
-	fmt.Printf("[!] Usage: png2pdf <png1> <png2> ...\n")
-}
-
-/*
- * Check if all files are actually .png && file exist
- * Return nil/error
- *
- */
-func validate_args(png_list []string) error {
-	for i := 0; i < len(png_list); i ++ {
-		if !strings.HasSuffix(strings.ToLower(png_list[i]), ".png") {
-			return errors.New("[-] File list must contain .png images only")
-		} else if !file_exists(png_list[i]) {
-			return errors.New(fmt.Sprintf("[-] %s: No such file", png_list[i]))
-		}
-	}
-
-	return nil
+	fmt.Printf("[*] Usage: png2pdf <png_dir>\n")
 }
 
 /*
@@ -62,15 +62,16 @@ func validate_args(png_list []string) error {
  * FIXME: handle error
  *
  */
-func make_pdf_from_png(png_list []string) error {
+func make_pdf_from_png(dir string, png_list []string) error {
 	pdf := gofpdf.New("P", "mm", "A4", "")
 
 	for i := 0; i < len(png_list); i++ {
 		pdf.AddPage()
-		pdf.ImageOptions(png_list[i], 0, 0, -1, -1, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "",)
+		fullpath := filepath.Join(dir, png_list[i])
+		pdf.ImageOptions(fullpath, 0, 0, -1, -1, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "",)
 	}
 
-	pdf.OutputFileAndClose("a.pdf")
+	pdf.OutputFileAndClose(filepath.Join(dir, "a.pdf"))
 
 	return nil
 }
@@ -88,4 +89,82 @@ func file_exists(filename string) bool {
 	}
 
 	return !info.IsDir()
+}
+
+/*
+* Tell if a directory exists.
+* Return true/false
+*
+*/
+func dir_exists(dir string) bool {
+	info, err := os.Stat(dir)
+
+	if os.IsNotExist(err) {
+		return false
+	}
+
+	return info.IsDir()
+}
+
+/*
+ * Tell if the specified string array is only composed
+ * of png files with digits as name
+ * Return true/false
+ *
+ */
+func is_ordered(l []string) bool {
+	for i := 0; i < len(l); i++ {
+		if  m, _ := re.MatchString("^[0-9]+\\.(?i)png$", l[i]); !m {
+			return false;
+		}
+	}
+
+	return true
+}
+
+/*
+ * Custom implementation for the sort interface
+
+ */
+func (p pngs) Len() int {
+	return len(p)
+}
+
+func (p pngs) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+
+func (p pngs) Less(i, j int) bool {
+	// strip .png ext
+	a, _ := strconv.Atoi(p[i][0:len(p[i])-4])
+	b, _ := strconv.Atoi(p[j][0:len(p[j])-4])
+
+	return a < b
+}
+
+/*
+ * dir: directory
+ * l: ptr to slice of string
+ *
+ * List all png files in specified dir
+ *
+ */
+func list_png(dir string, l *[]string) error {
+	files, err := ioutil.ReadDir(dir)
+
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		fullpath := filepath.Join(dir, f.Name())
+
+		if file_exists(fullpath) {
+			if m, _:= re.MatchString(".*\\.(?i)png$", f.Name()); m {
+				*l = append(*l, f.Name())
+			}
+		}
+	}
+
+	return nil
 }

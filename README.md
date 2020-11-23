@@ -8,5 +8,5 @@ png2pdf is a simple utility written in Go that builds a single pdf file from giv
 
 
 ## Usage
-`./png2pdf <png1> <png2> ...`<br/><br/>
-png2pdf generates a `a.pdf` file in the current working directory
+`./png2pdf <png_directory>`<br/><br/>
+png2pdf merges PNGs in a `a.pdf` file in the specified directory
