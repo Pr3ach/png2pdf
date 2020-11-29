@@ -1,5 +1,5 @@
 ## png2pdf
-png2pdf is a simple utility written in Go that builds a single pdf file from given PNGs.
+png2pdf is a simple utility written in Go that builds a single PDF file from given PNGs.
 
 ## Setup
 `$ git clone http://github.com/Pr3ach/png2pdf` <br/>
