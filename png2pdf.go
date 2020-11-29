@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 )
 
+const VERSION = "1.0.0"
+
 type pngs []string
 
 func main() {
@@ -54,6 +56,7 @@ func main() {
  *
  */
 func usage(self string) {
+	fmt.Printf("png2pdf v%s\n\n", VERSION)
 	fmt.Printf("[*] Usage: png2pdf <png_dir>\n")
 }
 
